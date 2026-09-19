@@ -2,7 +2,7 @@
 
 Dashboard em PHP puro que varre a rede local e mostra, ao vivo, os
 dispositivos conectados: nome (hostname), IP, endereço MAC e portas TCP
-abertas.
+abertas. Também verifica seu IP público na aba dedicada.
 
 ## Como funciona
 
@@ -31,6 +31,10 @@ abertas.
   Telnet/FTP em texto puro, SMB/RDP/VNC expostos) e o resultado aparece na
   coluna "Riscos" de cada host, separado por severidade (alto/médio/baixo),
   com um botão para expandir os detalhes de cada achado.
+- **IP público** (`src/Support/PublicIp.php`): aba separada no dashboard que
+  detecta o IP público da rede (usando o IP da própria interface, se já for
+  público, ou consultando um serviço externo de eco como ipify.org) e roda a
+  mesma varredura de portas/riscos contra ele, sob demanda.
 - **Tempo real**: `public/api/stream.php` mantém uma conexão
   [Server-Sent Events](https://developer.mozilla.org/pt-BR/docs/Web/API/Server-sent_events)
   aberta com o navegador e reenvia a lista de dispositivos a cada
@@ -122,11 +126,34 @@ específicas, ao contrário de ferramentas como Nessus/OpenVAS ou
 exposto costuma ser arriscado". Ajuste as regras em
 `src/Security/PortRiskAdvisor.php` conforme a realidade da sua rede.
 
+## IP público
+
+A aba "IP Público" no dashboard verifica, sob demanda, se há portas abertas
+no seu endereço público. **Importante:** essa verificação é feita de dentro
+da sua própria rede, então está sujeita a limitações de NAT hairpin — muitos
+roteadores não deixam a rede interna alcançar o próprio IP público, o que
+pode mascarar portas que na prática estão expostas para a internet. O
+dashboard exibe esse aviso, mas para um diagnóstico confiável do perímetro,
+rode a verificação a partir de outra rede (ex.: dados móveis) ou use um
+scanner externo dedicado.
+
+Requer que o servidor tenha acesso à internet (chamada de saída para um
+serviço de eco de IP como ipify.org, ifconfig.me ou icanhazip.com, com
+fallback entre eles). Se o `ext-curl` estiver instalado, proxies
+configurados via `HTTPS_PROXY`/`http_proxy` são respeitados automaticamente.
+Desative essa aba com:
+
+```bash
+export SCANNER_PUBLIC_IP_ENABLED=0
+```
+
 ## Endpoints da API
 
 - `GET /api/environment.php` — SO detectado, ferramentas disponíveis
   (`nmap`/`ping`/`ip`/`arp`/`ifconfig`), sub-redes locais encontradas e
   avisos sobre o que falta instalar.
+- `GET /api/public-ip.php?full=1` — detecta o IP público e varre portas
+  (e riscos) nele, sob demanda (`full=1` varre as portas 1–1024).
 - `GET /api/stream.php?subnet=192.168.1.0/24&ports=1&interval=20` — fluxo
   SSE contínuo com a lista de dispositivos (inclui `risks` por dispositivo
   quando `ports=1`).

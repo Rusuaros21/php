@@ -54,4 +54,12 @@ return [
         // Requer um MTA/sendmail configurado no servidor (função mail() do PHP).
         'email_to' => getenv('SCANNER_ALERT_EMAIL_TO') ?: null,
     ],
+
+    // Verificação do IP público (aba "IP Público" no dashboard). Precisa de
+    // acesso à internet: se a rede local não tiver um IP público próprio,
+    // o sistema consulta um serviço externo de eco (ipify.org e similares)
+    // para descobri-lo. Desative se preferir não fazer chamadas externas.
+    'public_ip' => [
+        'enabled' => filter_var(getenv('SCANNER_PUBLIC_IP_ENABLED') ?: '1', FILTER_VALIDATE_BOOLEAN),
+    ],
 ];

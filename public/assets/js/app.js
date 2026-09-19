@@ -11,6 +11,15 @@
   const scanPortsCheckbox = document.getElementById('scanPorts');
   const form = document.getElementById('controlsForm');
   const envWarningsEl = document.getElementById('envWarnings');
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  const tabPanels = {
+    local: document.getElementById('tab-local'),
+    public: document.getElementById('tab-public'),
+  };
+  const checkPublicIpBtn = document.getElementById('checkPublicIpBtn');
+  const publicIpEl = document.getElementById('publicIp');
+  const publicIpCheckedAtEl = document.getElementById('publicIpCheckedAt');
+  const publicIpContentEl = document.getElementById('publicIpContent');
 
   const SEVERITY_LABEL = { high: 'ALTO', medium: 'MÉDIO', low: 'BAIXO' };
   const SEVERITY_RANK = { high: 3, medium: 2, low: 1 };
@@ -243,6 +252,54 @@
     event.preventDefault();
     connect();
   });
+
+  tabButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      tabButtons.forEach((b) => b.classList.toggle('is-active', b === btn));
+      Object.entries(tabPanels).forEach(([key, panel]) => {
+        panel.hidden = key !== btn.dataset.tab;
+      });
+    });
+  });
+
+  async function checkPublicIp() {
+    const originalLabel = checkPublicIpBtn.textContent;
+    checkPublicIpBtn.disabled = true;
+    checkPublicIpBtn.textContent = 'Verificando…';
+    publicIpContentEl.innerHTML = '<div class="empty">Verificando portas no seu IP público…</div>';
+
+    try {
+      const res = await fetch('api/public-ip.php');
+      const data = await res.json();
+
+      if (data.error) {
+        publicIpEl.textContent = '—';
+        publicIpContentEl.innerHTML = `<div class="empty">${escapeHtml(data.error)}</div>`;
+        return;
+      }
+
+      publicIpEl.textContent = data.ip;
+      publicIpCheckedAtEl.textContent = data.checked_at
+        ? new Date(data.checked_at).toLocaleString('pt-BR')
+        : '—';
+
+      const risksHtml = renderRiskDetails(data.risks)
+        || '<p class="muted">Nenhum risco conhecido identificado nas portas verificadas.</p>';
+
+      publicIpContentEl.innerHTML = `
+        <div class="public-ip-ports">${renderPorts(data.ports)}</div>
+        ${risksHtml}
+      `;
+    } catch (err) {
+      console.error('Falha ao verificar IP público', err);
+      publicIpContentEl.innerHTML = '<div class="empty">Falha ao verificar. Tente novamente.</div>';
+    } finally {
+      checkPublicIpBtn.disabled = false;
+      checkPublicIpBtn.textContent = originalLabel;
+    }
+  }
+
+  checkPublicIpBtn.addEventListener('click', checkPublicIp);
 
   loadEnvironment();
   connect();

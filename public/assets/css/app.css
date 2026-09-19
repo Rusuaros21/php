@@ -220,6 +220,51 @@ table.devices tbody tr.is-new {
   padding: 0.6rem 0.9rem;
 }
 
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  padding: 0.6rem 0.2rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab-btn:hover {
+  color: var(--text);
+}
+
+.tab-btn.is-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab-panel[hidden] {
+  display: none;
+}
+
+.note {
+  background: rgba(79, 140, 255, 0.08);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
+}
+
+.public-ip-ports {
+  margin-bottom: 1rem;
+}
+
 .warning-item {
   color: var(--warn);
   font-size: 0.85rem;

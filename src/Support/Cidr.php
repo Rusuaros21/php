@@ -23,7 +23,7 @@ final class Cidr
      * macOS/BSD/legacy `ifconfig`, and finally a pure-PHP hostname lookup
      * that needs no external command at all.
      *
-     * @return array<int, array{iface: string, cidr: string}>
+     * @return array<int, array{iface: string, ip: string, cidr: string}>
      */
     public static function detectLocalSubnets(): array
     {
@@ -149,7 +149,7 @@ final class Cidr
             }
         }
 
-        $subnets[] = ['iface' => $iface, 'cidr' => $normalized];
+        $subnets[] = ['iface' => $iface, 'ip' => $ip, 'cidr' => $normalized];
     }
 
     private static function hexMaskToPrefix(string $hexMask): int
