@@ -19,18 +19,21 @@ final class Environment
             return self::$cache;
         }
 
+        $isWindows = PHP_OS_FAMILY === 'Windows';
+
         $hasNmap = self::commandExists('nmap');
         $hasPing = self::commandExists('ping');
         $hasIp = self::commandExists('ip');
         $hasArp = self::commandExists('arp');
         $hasIfconfig = self::commandExists('ifconfig');
+        $hasIpconfig = $isWindows && self::commandExists('ipconfig');
 
         $warnings = [];
         if (!$hasNmap && !$hasPing) {
             $warnings[] = 'Nem "nmap" nem "ping" foram encontrados neste servidor — a descoberta de dispositivos não vai funcionar. Instale um dos dois (recomendado: nmap).';
         }
-        if (!$hasNmap && !$hasIp && !$hasArp) {
-            $warnings[] = 'Nem "ip" nem "arp" foram encontrados — endereços MAC não poderão ser lidos sem o nmap.';
+        if (!$hasNmap && !$hasArp) {
+            $warnings[] = 'O "arp" não foi encontrado — endereços MAC não poderão ser lidos sem o nmap.';
         }
 
         $subnets = Cidr::detectLocalSubnets();
@@ -47,6 +50,7 @@ final class Environment
                 'ip' => $hasIp,
                 'arp' => $hasArp,
                 'ifconfig' => $hasIfconfig,
+                'ipconfig' => $hasIpconfig,
             ],
             'subnets' => $subnets,
             'recommended_subnet' => $subnets[0]['cidr'] ?? null,
@@ -56,7 +60,7 @@ final class Environment
         return self::$cache;
     }
 
-    private static function commandExists(string $bin): bool
+    public static function commandExists(string $bin): bool
     {
         $checker = PHP_OS_FAMILY === 'Windows'
             ? 'where ' . escapeshellarg($bin) . ' 2>NUL'

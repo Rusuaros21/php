@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App;
 
 use App\Support\Cidr;
+use App\Support\Environment;
 use App\Support\VendorLookup;
 
 /**
@@ -33,8 +34,7 @@ final class NetworkScanner
     public function hasNmap(): bool
     {
         if ($this->nmapAvailable === null) {
-            $path = trim((string) @shell_exec('command -v nmap 2>/dev/null'));
-            $this->nmapAvailable = $path !== '';
+            $this->nmapAvailable = Environment::commandExists('nmap');
         }
 
         return $this->nmapAvailable;
@@ -103,11 +103,12 @@ final class NetworkScanner
 
         foreach (array_chunk($ips, $this->pingBatchSize) as $batch) {
             $procs = [];
+            $nullDevice = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
             foreach ($batch as $ip) {
                 $cmd = $this->pingCommand($ip);
                 $descriptors = [
-                    1 => ['file', '/dev/null', 'w'],
-                    2 => ['file', '/dev/null', 'w'],
+                    1 => ['file', $nullDevice, 'w'],
+                    2 => ['file', $nullDevice, 'w'],
                 ];
                 $pipes = [];
                 $proc = @proc_open($cmd, $descriptors, $pipes);
@@ -142,12 +143,17 @@ final class NetworkScanner
     }
 
     /**
-     * `ping`'s timeout flag is not portable: iputils (Linux) takes `-W`
-     * in seconds, while macOS/BSD ping interprets `-W` as milliseconds
-     * and instead offers `-t` as an overall per-run deadline in seconds.
+     * `ping`'s flags are not portable: iputils (Linux) takes `-c` (count)
+     * and `-W` (timeout in seconds); macOS/BSD ping interprets `-W` as
+     * milliseconds and instead offers `-t` as an overall deadline in
+     * seconds; Windows ping uses `-n` (count) and `-w` (timeout in ms).
      */
     private function pingCommand(string $ip): string
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            return sprintf('ping -n 1 -w %d %s', $this->pingTimeout * 1000, escapeshellarg($ip));
+        }
+
         if (PHP_OS_FAMILY === 'Darwin' || PHP_OS_FAMILY === 'BSD') {
             return sprintf('ping -c 1 -t %d %s', $this->pingTimeout, escapeshellarg($ip));
         }
@@ -167,6 +173,10 @@ final class NetworkScanner
 
     private function readArpTable(): array
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            return $this->readArpTableWindows();
+        }
+
         $table = [];
 
         $output = @shell_exec('ip neigh show 2>/dev/null');
@@ -197,6 +207,28 @@ final class NetworkScanner
                     if (preg_match('#\((\d+\.\d+\.\d+\.\d+)\)\s+at\s+([0-9a-fA-F:]{17})#', $line, $m)) {
                         $table[$m[1]] = strtoupper($m[2]);
                     }
+                }
+            }
+        }
+
+        return $table;
+    }
+
+    /**
+     * Windows `arp -a` output looks like:
+     *   Interface: 192.168.1.5 --- 0xb
+     *     Internet Address      Physical Address      Type
+     *     192.168.1.1           aa-bb-cc-dd-ee-ff     dynamic
+     */
+    private function readArpTableWindows(): array
+    {
+        $table = [];
+
+        $output = @shell_exec('arp -a 2>NUL');
+        if ($output) {
+            foreach (preg_split('/\r?\n/', $output) as $line) {
+                if (preg_match('#^\s*(\d+\.\d+\.\d+\.\d+)\s+([0-9a-fA-F-]{17})\s+\w+#', $line, $m)) {
+                    $table[$m[1]] = strtoupper(str_replace('-', ':', $m[2]));
                 }
             }
         }

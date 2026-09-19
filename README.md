@@ -46,15 +46,33 @@ abertas. Também verifica seu IP público na aba dedicada.
   `pdo_sqlite`).
 - Recomendado: [`nmap`](https://nmap.org/) instalado no servidor (dá
   resultados mais rápidos e confiáveis, incluindo fabricante do dispositivo).
-  Sem `nmap`, o sistema usa `ping` e `ip`/`arp`/`ifconfig` — certifique-se de
-  que esses utilitários existem no PATH. Linux e macOS são suportados
-  nativamente; Windows não foi testado.
+  Sem `nmap`, o sistema usa os utilitários nativos do SO (`ping` +
+  `ip`/`arp`/`ifconfig` no Linux/macOS, ou `ping`/`arp`/`ipconfig` no
+  Windows) — certifique-se de que existem no PATH.
 - Para descoberta de MAC via ARP funcionar bem (com ou sem `nmap`), o
   processo PHP geralmente precisa rodar como usuário com permissão de rede
-  local (em muitas distros, `ping`/varredura ARP só funcionam corretamente
-  como root ou com as *capabilities* `cap_net_raw` configuradas).
+  local (em muitas distros Linux, `ping`/varredura ARP só funcionam
+  corretamente como root ou com as *capabilities* `cap_net_raw`
+  configuradas).
 - Se alguma dessas ferramentas estiver faltando, o dashboard mostra um aviso
   explicando o que instalar — veja `GET /api/environment.php`.
+
+### Windows
+
+Linux, macOS e Windows são suportados nativamente (o sistema detecta o SO e
+ajusta os comandos de `ping`/ARP automaticamente). Duas formas de rodar no
+Windows:
+
+- **PHP nativo para Windows** (mais simples): baixe o PHP em
+  https://windows.php.net/download/, instale o [nmap para Windows](https://nmap.org/download.html#windows)
+  (recomendado — sem ele, a varredura de hosts usa `ping`/`arp` nativos do
+  Windows, que funcionam, mas são mais lentos) e rode
+  `php -S 0.0.0.0:8080 -t public` num terminal (cmd ou PowerShell).
+- **WSL2**: funciona, mas por padrão o WSL2 usa uma rede virtual própria
+  (NAT), então a sub-rede detectada de dentro do WSL não é a mesma da sua
+  LAN real. Se for usar WSL2, habilite o *mirrored networking mode* (Windows
+  11 recente, via `.wslconfig`) para que ele enxergue a rede física
+  diretamente — caso contrário, prefira o PHP nativo para Windows acima.
 
 ## Como rodar
 

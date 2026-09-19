@@ -28,17 +28,53 @@ final class Cidr
     public static function detectLocalSubnets(): array
     {
         $subnets = [];
+        $isWindows = PHP_OS_FAMILY === 'Windows';
 
-        $output = @shell_exec('ip -o -4 addr show scope global 2>/dev/null');
-        if ($output) {
-            foreach (explode("\n", trim($output)) as $line) {
-                if (preg_match('#^\d+:\s+(\S+)\s+inet\s+(\d+\.\d+\.\d+\.\d+/\d+)#', $line, $m)) {
-                    self::addSubnet($subnets, $m[1], $m[2]);
+        if ($isWindows) {
+            $output = @shell_exec('ipconfig 2>NUL');
+            if ($output) {
+                $iface = null;
+                $pendingIp = null;
+                foreach (preg_split('/\r?\n/', $output) as $line) {
+                    if (trim($line) === '') {
+                        continue;
+                    }
+
+                    // Adapter header lines start at column 0 and end with ":"
+                    // (e.g. "Wireless LAN adapter Wi-Fi:").
+                    if (!preg_match('#^\s#', $line) && str_ends_with(rtrim($line), ':')) {
+                        $iface = trim(rtrim($line), ': ');
+                        $pendingIp = null;
+                        continue;
+                    }
+                    if ($iface === null) {
+                        continue;
+                    }
+
+                    if (preg_match('#IPv4 Address[.\s]*:\s*(\d+\.\d+\.\d+\.\d+)#i', $line, $m)) {
+                        $pendingIp = $m[1];
+                        continue;
+                    }
+                    if ($pendingIp !== null && preg_match('#Subnet Mask[.\s]*:\s*(\d+\.\d+\.\d+\.\d+)#i', $line, $m)) {
+                        self::addSubnet($subnets, $iface, $pendingIp . '/' . self::dottedMaskToPrefix($m[1]));
+                        $pendingIp = null;
+                    }
                 }
             }
         }
 
-        if (!$subnets) {
+        if (!$subnets && !$isWindows) {
+            $output = @shell_exec('ip -o -4 addr show scope global 2>/dev/null');
+            if ($output) {
+                foreach (explode("\n", trim($output)) as $line) {
+                    if (preg_match('#^\d+:\s+(\S+)\s+inet\s+(\d+\.\d+\.\d+\.\d+/\d+)#', $line, $m)) {
+                        self::addSubnet($subnets, $m[1], $m[2]);
+                    }
+                }
+            }
+        }
+
+        if (!$subnets && !$isWindows) {
             $output = @shell_exec('ifconfig 2>/dev/null');
             if ($output) {
                 $iface = null;

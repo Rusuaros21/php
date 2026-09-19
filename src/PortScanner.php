@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Support\Environment;
+
 /**
  * Scans a host's TCP ports. Uses `nmap` when available, otherwise falls
  * back to concurrent non-blocking socket connects (all ports are probed
@@ -32,8 +34,7 @@ final class PortScanner
     public function hasNmap(): bool
     {
         if ($this->nmapAvailable === null) {
-            $path = trim((string) @shell_exec('command -v nmap 2>/dev/null'));
-            $this->nmapAvailable = $path !== '';
+            $this->nmapAvailable = Environment::commandExists('nmap');
         }
 
         return $this->nmapAvailable;
