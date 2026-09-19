@@ -14,12 +14,15 @@
   const tabButtons = document.querySelectorAll('.tab-btn');
   const tabPanels = {
     local: document.getElementById('tab-local'),
+    diagnostics: document.getElementById('tab-diagnostics'),
     public: document.getElementById('tab-public'),
   };
   const checkPublicIpBtn = document.getElementById('checkPublicIpBtn');
   const publicIpEl = document.getElementById('publicIp');
   const publicIpCheckedAtEl = document.getElementById('publicIpCheckedAt');
   const publicIpContentEl = document.getElementById('publicIpContent');
+  const diagnosticsContentEl = document.getElementById('diagnosticsContent');
+  const diagnosticsBadgeEl = document.getElementById('diagnosticsBadge');
 
   const SEVERITY_LABEL = { high: 'ALTO', medium: 'MÉDIO', low: 'BAIXO' };
   const SEVERITY_RANK = { high: 3, medium: 2, low: 1 };
@@ -71,6 +74,13 @@
         subnetSuggestionsEl.appendChild(option);
       });
 
+      // Pre-fill (not just suggest) the detected subnet, visibly and
+      // editable, so it's clear what will be scanned before the user does
+      // anything — they can still overwrite it with a different range.
+      if (!subnetInput.value.trim() && env.recommended_subnet) {
+        subnetInput.value = env.recommended_subnet;
+      }
+
       renderWarnings(env.warnings);
     } catch (err) {
       console.error('Falha ao detectar o ambiente de rede', err);
@@ -114,6 +124,29 @@
     return `<ul class="risk-list">${items}</ul>`;
   }
 
+  function renderDiagnostics(diagnostics) {
+    const list = Array.isArray(diagnostics) ? diagnostics : [];
+
+    diagnosticsBadgeEl.hidden = list.length === 0;
+    diagnosticsBadgeEl.textContent = String(list.length);
+
+    if (list.length === 0) {
+      diagnosticsContentEl.innerHTML = '<div class="empty">Nenhum problema detectado na rede até agora.</div>';
+      return;
+    }
+
+    const items = list
+      .map((d) => `
+        <li class="risk-item risk-item--${escapeHtml(d.severity)}">
+          <span class="risk-item__severity">${SEVERITY_LABEL[d.severity] || escapeHtml(d.severity).toUpperCase()}</span>
+          <strong>${escapeHtml(d.title)}</strong>
+          <p>${escapeHtml(d.description)}</p>
+        </li>
+      `)
+      .join('');
+    diagnosticsContentEl.innerHTML = `<ul class="risk-list">${items}</ul>`;
+  }
+
   function renderDevices(payload) {
     const devices = payload.devices || [];
     deviceCountEl.textContent = String(devices.length);
@@ -126,6 +159,8 @@
     if (Array.isArray(payload.warnings)) {
       renderWarnings(payload.warnings);
     }
+
+    renderDiagnostics(payload.network_diagnostics);
 
     if (devices.length === 0) {
       deviceListEl.innerHTML = '<tr><td colspan="8" class="empty">Nenhum dispositivo encontrado.</td></tr>';

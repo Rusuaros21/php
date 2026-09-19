@@ -62,4 +62,12 @@ return [
     'public_ip' => [
         'enabled' => filter_var(getenv('SCANNER_PUBLIC_IP_ENABLED') ?: '1', FILTER_VALIDATE_BOOLEAN),
     ],
+
+    // Diagnóstico de rede (aba "Diagnóstico"): MAC duplicado, loop de rede
+    // (respostas de ping duplicadas) e dispositivos "instáveis". O limite de
+    // instabilidade só se aplica ao fluxo em tempo real (precisa de vários
+    // ciclos de varredura para detectar oscilação).
+    'diagnostics' => [
+        'flap_threshold' => 3,
+    ],
 ];

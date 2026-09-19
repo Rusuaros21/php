@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Alerting\AlertDispatcher;
+use App\Diagnostics\NetworkAnomalyDetector;
 use App\NetworkScanner;
 use App\PortScanner;
 use App\Security\PortRiskAdvisor;
@@ -43,6 +44,11 @@ $scanner = new NetworkScanner($config['ping_timeout'], $config['ping_batch_size'
 $portScanner = $scanPorts ? new PortScanner($config['ports'], $config['port_scan_timeout']) : null;
 $store = !empty($config['storage']['enabled']) ? new DeviceStore($config['storage']['sqlite_path']) : null;
 $alertDispatcher = new AlertDispatcher($config);
+$flapThreshold = max(2, (int) $config['diagnostics']['flap_threshold']);
+
+// Presence history across scan cycles of this same connection, used to
+// spot devices that keep going on/offline (weak signal, bad cable, etc.).
+$presenceHistory = [];
 
 echo "retry: 3000\n\n";
 flush();
@@ -76,11 +82,43 @@ while (!connection_aborted()) {
         }
     }
 
+    $networkDiagnostics = NetworkAnomalyDetector::duplicateMacs($devices);
+    $networkDiagnostics = array_merge(
+        $networkDiagnostics,
+        NetworkAnomalyDetector::detectLoops($scanner, $devices, $subnet)
+    );
+
+    $currentIps = array_column($devices, 'ip');
+    $labelByIp = [];
+    foreach ($devices as $device) {
+        $labelByIp[$device['ip']] = $device['hostname'] ?: $device['ip'];
+    }
+    $trackedIps = array_unique([...array_keys($presenceHistory), ...$currentIps]);
+    $currentSet = array_flip($currentIps);
+    foreach ($trackedIps as $ip) {
+        $isUp = isset($currentSet[$ip]);
+        if (!isset($presenceHistory[$ip])) {
+            $presenceHistory[$ip] = ['last' => $isUp, 'flaps' => 0];
+            continue;
+        }
+        if ($presenceHistory[$ip]['last'] !== $isUp) {
+            $presenceHistory[$ip]['flaps']++;
+            $presenceHistory[$ip]['last'] = $isUp;
+        }
+        if ($presenceHistory[$ip]['flaps'] >= $flapThreshold) {
+            $networkDiagnostics[] = NetworkAnomalyDetector::flappingFinding(
+                $labelByIp[$ip] ?? $ip,
+                $presenceHistory[$ip]['flaps']
+            );
+        }
+    }
+
     $payload = [
         'subnet' => $subnet,
         'scanned_at' => date(DATE_ATOM),
         'engine' => $scanner->hasNmap() ? 'nmap' : 'php',
         'devices' => $devices,
+        'network_diagnostics' => $networkDiagnostics,
         'warnings' => Environment::detect()['warnings'],
     ];
 

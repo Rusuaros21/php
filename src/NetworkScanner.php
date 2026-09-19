@@ -17,6 +17,9 @@ final class NetworkScanner
 {
     private ?bool $nmapAvailable = null;
 
+    /** @var array<string, string> IP => raw ping stdout, populated only when the ping fallback ran. */
+    private array $lastPingOutputs = [];
+
     public function __construct(
         private readonly int $pingTimeout = 1,
         private readonly int $pingBatchSize = 64,
@@ -26,9 +29,38 @@ final class NetworkScanner
 
     public function discoverHosts(string $cidr): array
     {
+        $this->lastPingOutputs = [];
+
         return $this->hasNmap()
             ? $this->discoverWithNmap($cidr)
             : $this->discoverWithPing($cidr);
+    }
+
+    /**
+     * Raw ping output captured per host during the last discoverHosts()
+     * call, but only when the pure-PHP ping fallback ran (empty when nmap
+     * was used for discovery). Used for network-loop detection.
+     *
+     * @return array<string, string>
+     */
+    public function getLastPingOutputs(): array
+    {
+        return $this->lastPingOutputs;
+    }
+
+    /**
+     * Pings a single host and returns whether it replied and the raw
+     * output, for supplementary diagnostics (e.g. loop detection) against
+     * hosts that weren't pinged directly, such as when nmap did discovery.
+     */
+    public function probePing(string $ip): array
+    {
+        $handle = $this->startPing($ip);
+        if ($handle === null) {
+            return ['alive' => false, 'output' => ''];
+        }
+
+        return $this->finishPing($handle);
     }
 
     public function hasNmap(): bool
@@ -102,24 +134,19 @@ final class NetworkScanner
         $alive = [];
 
         foreach (array_chunk($ips, $this->pingBatchSize) as $batch) {
-            $procs = [];
-            $nullDevice = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
+            $handles = [];
             foreach ($batch as $ip) {
-                $cmd = $this->pingCommand($ip);
-                $descriptors = [
-                    1 => ['file', $nullDevice, 'w'],
-                    2 => ['file', $nullDevice, 'w'],
-                ];
-                $pipes = [];
-                $proc = @proc_open($cmd, $descriptors, $pipes);
-                if (is_resource($proc)) {
-                    $procs[$ip] = $proc;
+                $handle = $this->startPing($ip);
+                if ($handle !== null) {
+                    $handles[$ip] = $handle;
                 }
             }
 
-            foreach ($procs as $ip => $proc) {
-                if (proc_close($proc) === 0) {
+            foreach ($handles as $ip => $handle) {
+                $result = $this->finishPing($handle);
+                if ($result['alive']) {
                     $alive[] = $ip;
+                    $this->lastPingOutputs[$ip] = $result['output'];
                 }
             }
         }
@@ -159,6 +186,38 @@ final class NetworkScanner
         }
 
         return sprintf('ping -c 1 -W %d %s', $this->pingTimeout, escapeshellarg($ip));
+    }
+
+    /**
+     * @return array{proc: resource, stdout: resource}|null
+     */
+    private function startPing(string $ip): ?array
+    {
+        $nullDevice = PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null';
+        $descriptors = [
+            1 => ['pipe', 'w'],
+            2 => ['file', $nullDevice, 'w'],
+        ];
+        $pipes = [];
+        $proc = @proc_open($this->pingCommand($ip), $descriptors, $pipes);
+        if (!is_resource($proc)) {
+            return null;
+        }
+
+        return ['proc' => $proc, 'stdout' => $pipes[1]];
+    }
+
+    /**
+     * @param array{proc: resource, stdout: resource} $handle
+     * @return array{alive: bool, output: string}
+     */
+    private function finishPing(array $handle): array
+    {
+        $output = stream_get_contents($handle['stdout']) ?: '';
+        fclose($handle['stdout']);
+        $exitCode = proc_close($handle['proc']);
+
+        return ['alive' => $exitCode === 0, 'output' => $output];
     }
 
     private function resolveHostname(string $ip): ?string

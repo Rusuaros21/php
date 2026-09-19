@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Alerting\AlertDispatcher;
+use App\Diagnostics\NetworkAnomalyDetector;
 use App\NetworkScanner;
 use App\PortScanner;
 use App\Security\PortRiskAdvisor;
@@ -50,6 +51,12 @@ if ($scanPorts) {
     unset($device);
 }
 
+$networkDiagnostics = NetworkAnomalyDetector::duplicateMacs($devices);
+$networkDiagnostics = array_merge(
+    $networkDiagnostics,
+    NetworkAnomalyDetector::detectLoops($scanner, $devices, $subnet)
+);
+
 if (!empty($config['storage']['enabled'])) {
     $store = new DeviceStore($config['storage']['sqlite_path']);
     $newIdentities = $store->recordScan($devices);
@@ -74,5 +81,6 @@ echo json_encode([
     'scanned_at' => date(DATE_ATOM),
     'engine' => $scanner->hasNmap() ? 'nmap' : 'php',
     'devices' => $devices,
+    'network_diagnostics' => $networkDiagnostics,
     'warnings' => Environment::detect()['warnings'],
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

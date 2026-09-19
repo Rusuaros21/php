@@ -36,6 +36,7 @@ require __DIR__ . '/bootstrap.php';
 
   <div class="tabs">
     <button type="button" class="tab-btn is-active" data-tab="local">Rede Local</button>
+    <button type="button" class="tab-btn" data-tab="diagnostics">Diagnóstico <span id="diagnosticsBadge" class="tab-badge" hidden>0</span></button>
     <button type="button" class="tab-btn" data-tab="public">IP Público</button>
   </div>
 
@@ -65,6 +66,20 @@ require __DIR__ . '/bootstrap.php';
         <tr><td colspan="8" class="empty">Aguardando primeira varredura…</td></tr>
       </tbody>
     </table>
+  </section>
+
+  <section id="tab-diagnostics" class="tab-panel" hidden>
+    <p class="note">
+      Verificações automáticas de saúde da própria rede: MAC duplicado
+      (possível clonagem ou spoofing), loop de rede (respostas de ping
+      duplicadas — indício clássico de loop de switch) e dispositivos
+      instáveis (entrando e saindo repetidamente). A detecção de
+      instabilidade só funciona no monitoramento ao vivo — precisa observar
+      vários ciclos de varredura.
+    </p>
+    <div id="diagnosticsContent">
+      <div class="empty">Aguardando primeira varredura…</div>
+    </div>
   </section>
 
   <section id="tab-public" class="tab-panel" hidden>

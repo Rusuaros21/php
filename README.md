@@ -31,6 +31,12 @@ abertas. Também verifica seu IP público na aba dedicada.
   Telnet/FTP em texto puro, SMB/RDP/VNC expostos) e o resultado aparece na
   coluna "Riscos" de cada host, separado por severidade (alto/médio/baixo),
   com um botão para expandir os detalhes de cada achado.
+- **Diagnóstico de rede** (`src/Diagnostics/NetworkAnomalyDetector.php`): aba
+  separada que detecta problemas na própria rede — MAC duplicado (o mesmo
+  endereço MAC associado a mais de um IP na mesma varredura), loop de rede
+  (respostas de ping duplicadas — sinal clássico de loop de switch/broadcast
+  storm) e dispositivos instáveis (que entram e saem da rede repetidamente
+  durante o monitoramento ao vivo).
 - **IP público** (`src/Support/PublicIp.php`): aba separada no dashboard que
   detecta o IP público da rede (usando o IP da própria interface, se já for
   público, ou consultando um serviço externo de eco como ipify.org) e roda a
@@ -144,6 +150,36 @@ específicas, ao contrário de ferramentas como Nessus/OpenVAS ou
 exposto costuma ser arriscado". Ajuste as regras em
 `src/Security/PortRiskAdvisor.php` conforme a realidade da sua rede.
 
+## Diagnóstico de rede (MAC duplicado, loop, instabilidade)
+
+A aba "Diagnóstico" mostra, em tempo real, achados sobre a saúde da própria
+rede — não de um host específico:
+
+- **MAC duplicado**: o mesmo endereço MAC apareceu em mais de um IP na
+  mesma varredura. Pode ser normal (um roteador com múltiplas interfaces),
+  mas também pode indicar uma VM clonada do mesmo template ou spoofing de
+  MAC.
+- **Loop de rede**: detectado quando um único ping recebe mais de uma
+  resposta (`DUP!` no Linux, `+N duplicates` no macOS/BSD, múltiplas
+  `Reply from` no Windows) — um indício real e bem conhecido de loop de
+  switch (cabo criando um caminho redundante, geralmente com o Spanning
+  Tree Protocol desligado ou mal configurado), que pode causar broadcast
+  storms e lentidão em toda a rede. Quando o `nmap` é usado para descoberta
+  (que não expõe esse detalhe), o sistema faz uma sondagem extra e pequena
+  (o primeiro host da sub-rede, geralmente o gateway, mais alguns
+  dispositivos já encontrados) para não perder essa checagem.
+- **Dispositivo instável**: um IP que mudou de status (online/offline)
+  várias vezes durante o monitoramento ao vivo (limite configurável em
+  `config/config.php` → `diagnostics.flap_threshold`, padrão 3) — costuma
+  indicar sinal Wi-Fi fraco, cabo com mau contato, ou economia de energia
+  agressiva do dispositivo. **Só funciona no modo streaming** (a varredura
+  única de `/api/scan.php` não tem histórico de ciclos para comparar).
+
+Como os outros heurísticos deste projeto, isto não substitui uma análise
+profissional com captura de pacotes (Wireshark) ou verificação da tabela
+de MAC/STP dos switches — é um alerta de "algo parece errado aqui, vale
+investigar".
+
 ## IP público
 
 A aba "IP Público" no dashboard verifica, sob demanda, se há portas abertas
@@ -174,9 +210,11 @@ export SCANNER_PUBLIC_IP_ENABLED=0
   (e riscos) nele, sob demanda (`full=1` varre as portas 1–1024).
 - `GET /api/stream.php?subnet=192.168.1.0/24&ports=1&interval=20` — fluxo
   SSE contínuo com a lista de dispositivos (inclui `risks` por dispositivo
-  quando `ports=1`).
+  quando `ports=1`, e `network_diagnostics` com os achados de saúde da
+  rede, incluindo detecção de instabilidade).
 - `GET /api/scan.php?subnet=192.168.1.0/24&ports=1` — uma varredura única em
-  JSON (útil para scripts ou integrações).
+  JSON, com `network_diagnostics` (sem detecção de instabilidade, que
+  requer múltiplos ciclos).
 - `GET /api/ports.php?ip=192.168.1.10&full=1` — varredura de portas e riscos
   sob demanda para um único dispositivo (`full=1` varre as portas 1–1024;
   sem esse parâmetro, usa a lista de portas comuns do `config/config.php`).
