@@ -42,6 +42,54 @@ detectada automaticamente a partir da interface de rede local; se a detecção
 falhar, informe manualmente no campo "Sub-rede" (ex.: `192.168.1.0/24`) e
 clique em "Aplicar".
 
+## Autenticação (recomendado antes de expor em qualquer rede)
+
+Por padrão o dashboard fica **sem autenticação**. Para exigir usuário e senha
+(HTTP Basic Auth) em todas as páginas e endpoints, defina antes de subir o
+servidor:
+
+```bash
+export SCANNER_AUTH_ENABLED=1
+export SCANNER_AUTH_USER=admin
+export SCANNER_AUTH_PASS="uma-senha-forte"
+php -S 0.0.0.0:8080 -t public
+```
+
+Sem HTTPS na frente (ex.: atrás de um reverse proxy), as credenciais Basic
+Auth trafegam apenas ofuscadas em base64 — trate como texto plano na rede.
+
+## Histórico e alerta de dispositivo novo
+
+Cada varredura é registrada em um banco SQLite local
+(`storage/devices.sqlite`, criado automaticamente e ignorado pelo git). Isso
+permite diferenciar um dispositivo que está aparecendo pela primeira vez na
+rede (marcado com o selo "NOVO" no dashboard) de um que só voltou a ficar
+online. Para desativar esse histórico, defina `storage.enabled = false` em
+`config/config.php`.
+
+Quando um dispositivo novo é detectado, dois canais de alerta opcionais
+podem ser configurados via variáveis de ambiente (ambos inativos por
+padrão):
+
+```bash
+# Qualquer endpoint que aceite POST com corpo JSON (Slack, Discord, um bot
+# do Telegram por trás de uma ponte HTTP, n8n, Make, etc.)
+export SCANNER_ALERT_WEBHOOK_URL="https://exemplo.com/webhook"
+
+# Requer um MTA/sendmail configurado no servidor (usa a função mail() do PHP)
+export SCANNER_ALERT_EMAIL_TO="voce@exemplo.com"
+```
+
+## Identificação de fabricante (MAC OUI)
+
+Quando o `nmap` está disponível, o fabricante vem do próprio banco de dados
+dele (bem completo). Sem `nmap`, o sistema usa uma tabela pequena e
+selecionada de prefixos OUI conhecidos (`src/Support/oui-table.php`) —
+cobre casos comuns como Raspberry Pi, VMware/VirtualBox, dispositivos IoT
+baseados em Espressif (ESP32/ESP8266) e alguns prefixos da Apple. **Não é o
+banco de dados oficial da IEEE** e não cobre a maioria dos fabricantes; para
+identificação completa, instale o `nmap`.
+
 ## Endpoints da API
 
 - `GET /api/stream.php?subnet=192.168.1.0/24&ports=1&interval=20` — fluxo

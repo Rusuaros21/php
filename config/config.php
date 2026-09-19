@@ -27,4 +27,31 @@ return [
 
     // Limite de segurança de hosts varridos por ciclo (evita varreduras gigantes acidentais).
     'max_hosts' => 512,
+
+    // Autenticação HTTP Basic do dashboard. Desativada por padrão; ative
+    // definindo as variáveis de ambiente abaixo antes de expor a ferramenta
+    // em qualquer rede que não seja totalmente confiável.
+    'auth' => [
+        'enabled' => filter_var(getenv('SCANNER_AUTH_ENABLED') ?: '0', FILTER_VALIDATE_BOOLEAN),
+        'username' => getenv('SCANNER_AUTH_USER') ?: 'admin',
+        'password' => getenv('SCANNER_AUTH_PASS') ?: '',
+    ],
+
+    // Histórico de dispositivos (SQLite), usado para diferenciar um
+    // dispositivo realmente novo de um que só voltou a ficar online.
+    'storage' => [
+        'enabled' => true,
+        'sqlite_path' => __DIR__ . '/../storage/devices.sqlite',
+    ],
+
+    // Alertas quando um dispositivo é visto pela primeira vez na rede.
+    // Ambos são opcionais e ficam inativos se a respectiva variável não
+    // for definida.
+    'alerts' => [
+        // Aceita qualquer endpoint que receba um POST JSON: Slack, Discord,
+        // Telegram (via bot bridge), n8n, Make, etc.
+        'webhook_url' => getenv('SCANNER_ALERT_WEBHOOK_URL') ?: null,
+        // Requer um MTA/sendmail configurado no servidor (função mail() do PHP).
+        'email_to' => getenv('SCANNER_ALERT_EMAIL_TO') ?: null,
+    ],
 ];

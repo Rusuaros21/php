@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Alerting\AlertDispatcher;
 use App\NetworkScanner;
 use App\PortScanner;
+use App\Storage\DeviceStore;
 use App\Support\Cidr;
 
 $config = require __DIR__ . '/../bootstrap.php';
@@ -43,6 +45,25 @@ if ($scanPorts) {
         $device['ports'] = $portScanner->scan($device['ip']);
     }
     unset($device);
+}
+
+if (!empty($config['storage']['enabled'])) {
+    $store = new DeviceStore($config['storage']['sqlite_path']);
+    $newIdentities = $store->recordScan($devices);
+
+    $newDevices = [];
+    foreach ($devices as &$device) {
+        $identity = $device['mac'] ?: $device['ip'];
+        $device['is_new'] = isset($newIdentities[$identity]);
+        if ($device['is_new']) {
+            $newDevices[] = $device;
+        }
+    }
+    unset($device);
+
+    if ($newDevices) {
+        (new AlertDispatcher($config))->notifyNewDevices($newDevices);
+    }
 }
 
 echo json_encode([

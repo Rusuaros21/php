@@ -184,6 +184,14 @@ table.devices tbody tr.is-new {
   margin: 0.1rem;
 }
 
+.badge--new {
+  background: rgba(51, 193, 122, 0.15);
+  color: var(--ok);
+  border-color: rgba(51, 193, 122, 0.4);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
 .link-btn {
   background: transparent;
   border: 1px solid var(--border);

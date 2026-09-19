@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App;
 
 use App\Support\Cidr;
+use App\Support\VendorLookup;
 
 /**
  * Discovers live hosts on a local subnet, returning IP, MAC and hostname
@@ -68,7 +69,7 @@ final class NetworkScanner
                 } elseif ($type === 'mac') {
                     $mac = strtoupper((string) $address['addr']);
                     $vendorAttr = (string) $address['vendor'];
-                    $vendor = $vendorAttr !== '' ? $vendorAttr : null;
+                    $vendor = $vendorAttr !== '' ? $vendorAttr : VendorLookup::lookup($mac);
                 }
             }
 
@@ -126,10 +127,11 @@ final class NetworkScanner
 
         $devices = [];
         foreach ($alive as $ip) {
+            $mac = $arpTable[$ip] ?? null;
             $devices[] = [
                 'ip' => $ip,
-                'mac' => $arpTable[$ip] ?? null,
-                'vendor' => null,
+                'mac' => $mac,
+                'vendor' => VendorLookup::lookup($mac),
                 'hostname' => $this->resolveHostname($ip),
             ];
         }

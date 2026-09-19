@@ -1,4 +1,10 @@
-<?php declare(strict_types=1); ?>
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/bootstrap.php';
+
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>

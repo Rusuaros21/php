@@ -10,7 +10,6 @@
   const form = document.getElementById('controlsForm');
 
   let source = null;
-  let knownIps = new Set();
 
   function setStatus(text, cls) {
     statusEl.textContent = text;
@@ -50,24 +49,23 @@
 
     if (devices.length === 0) {
       deviceListEl.innerHTML = '<tr><td colspan="7" class="empty">Nenhum dispositivo encontrado.</td></tr>';
-      knownIps = new Set();
       return;
     }
 
-    const currentIps = new Set(devices.map((d) => d.ip));
-    const isFirstRender = knownIps.size === 0;
     deviceListEl.innerHTML = '';
 
     devices.forEach((device) => {
-      const isNew = !isFirstRender && !knownIps.has(device.ip);
       const tr = document.createElement('tr');
-      if (isNew) {
+      if (device.is_new) {
         tr.classList.add('is-new');
       }
 
+      const nameLabel = escapeHtml(device.hostname || '(desconhecido)')
+        + (device.is_new ? ' <span class="badge badge--new">NOVO</span>' : '');
+
       tr.innerHTML = `
         <td><span class="dot dot--online" title="online"></span></td>
-        <td>${escapeHtml(device.hostname || '(desconhecido)')}</td>
+        <td>${nameLabel}</td>
         <td>${escapeHtml(device.ip)}</td>
         <td>${escapeHtml(device.mac || '—')}</td>
         <td>${escapeHtml(device.vendor || '—')}</td>
@@ -76,8 +74,6 @@
       `;
       deviceListEl.appendChild(tr);
     });
-
-    knownIps = currentIps;
   }
 
   deviceListEl.addEventListener('click', async (event) => {
@@ -108,7 +104,6 @@
     if (source) {
       source.close();
     }
-    knownIps = new Set();
 
     const params = new URLSearchParams();
     const subnetValue = subnetInput.value.trim();

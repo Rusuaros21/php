@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Alerting\AlertDispatcher;
 use App\NetworkScanner;
 use App\PortScanner;
+use App\Storage\DeviceStore;
 use App\Support\Cidr;
 
 $config = require __DIR__ . '/../bootstrap.php';
@@ -37,6 +39,8 @@ $interval = max(5, (int) ($_GET['interval'] ?? $config['scan_interval']));
 
 $scanner = new NetworkScanner($config['ping_timeout'], $config['ping_batch_size'], $config['max_hosts']);
 $portScanner = $scanPorts ? new PortScanner($config['ports'], $config['port_scan_timeout']) : null;
+$store = !empty($config['storage']['enabled']) ? new DeviceStore($config['storage']['sqlite_path']) : null;
+$alertDispatcher = new AlertDispatcher($config);
 
 echo "retry: 3000\n\n";
 flush();
@@ -49,6 +53,24 @@ while (!connection_aborted()) {
             $device['ports'] = $portScanner->scan($device['ip']);
         }
         unset($device);
+    }
+
+    if ($store !== null) {
+        $newIdentities = $store->recordScan($devices);
+
+        $newDevices = [];
+        foreach ($devices as &$device) {
+            $identity = $device['mac'] ?: $device['ip'];
+            $device['is_new'] = isset($newIdentities[$identity]);
+            if ($device['is_new']) {
+                $newDevices[] = $device;
+            }
+        }
+        unset($device);
+
+        if ($newDevices) {
+            $alertDispatcher->notifyNewDevices($newDevices);
+        }
     }
 
     $payload = [

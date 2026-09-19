@@ -4,4 +4,8 @@ declare(strict_types=1);
 
 require __DIR__ . '/../src/autoload.php';
 
-return require __DIR__ . '/../config/config.php';
+$config = require __DIR__ . '/../config/config.php';
+
+App\Support\Auth::requireBasicAuth($config);
+
+return $config;
