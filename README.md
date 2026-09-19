@@ -70,10 +70,11 @@ ajusta os comandos de `ping`/ARP automaticamente). Duas formas de rodar no
 Windows:
 
 - **PHP nativo para Windows** (mais simples): baixe o PHP em
-  https://windows.php.net/download/, instale o [nmap para Windows](https://nmap.org/download.html#windows)
-  (recomendado — sem ele, a varredura de hosts usa `ping`/`arp` nativos do
-  Windows, que funcionam, mas são mais lentos) e rode
-  `php -S 0.0.0.0:8080 -t public` num terminal (cmd ou PowerShell).
+  https://windows.php.net/download/ e adicione ao PATH, instale o
+  [nmap para Windows](https://nmap.org/download.html#windows) (recomendado —
+  sem ele, a varredura de hosts usa `ping`/`arp` nativos do Windows, que
+  funcionam, mas são mais lentos) e dê duplo-clique em `start.bat` (veja
+  "Como rodar" abaixo).
 - **WSL2**: funciona, mas por padrão o WSL2 usa uma rede virtual própria
   (NAT), então a sub-rede detectada de dentro do WSL não é a mesma da sua
   LAN real. Se for usar WSL2, habilite o *mirrored networking mode* (Windows
@@ -82,14 +83,37 @@ Windows:
 
 ## Como rodar
 
+### Modo rápido (recomendado para uso em campo, ex.: na rede de um cliente)
+
+Dê duplo-clique no script correspondente ao seu sistema — ele detecta o PHP
+e o `nmap`, sobe o servidor (só acessível pela sua própria máquina, em
+`127.0.0.1`) e **abre o navegador automaticamente** no dashboard:
+
+- **Windows**: `start.bat`
+- **macOS/Linux**: `./start.sh` (dê permissão de execução uma vez com
+  `chmod +x start.sh`, se necessário)
+
+Para parar: feche a janela (Windows) ou pressione `Ctrl+C` (macOS/Linux).
+Nada fica instalado na rede do cliente — o servidor roda só no seu notebook
+enquanto o script estiver aberto.
+
+### Modo manual
+
 ```bash
-php -S 0.0.0.0:8080 -t public
+php -S 127.0.0.1:8080 -t public
 ```
 
 Depois acesse `http://localhost:8080` no navegador. Por padrão, a sub-rede é
-detectada automaticamente a partir da interface de rede local; se a detecção
-falhar, informe manualmente no campo "Sub-rede" (ex.: `192.168.1.0/24`) e
-clique em "Aplicar".
+detectada automaticamente a partir da interface de rede local e já vem
+preenchida no campo "Sub-rede" — edite esse campo e clique em "Aplicar" para
+testar uma faixa diferente.
+
+Se quiser acessar o dashboard de outro dispositivo na mesma rede (ex.: um
+tablet, para mostrar ao cliente), troque `127.0.0.1` por `0.0.0.0` no
+comando acima — mas lembre que isso também deixa o dashboard visível para
+qualquer outra pessoa nessa rede, então avalie ativar a
+[autenticação](#autenticação-recomendado-antes-de-expor-em-qualquer-rede)
+nesse caso.
 
 ## Autenticação (recomendado antes de expor em qualquer rede)
 
