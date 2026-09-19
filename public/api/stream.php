@@ -5,8 +5,10 @@ declare(strict_types=1);
 use App\Alerting\AlertDispatcher;
 use App\NetworkScanner;
 use App\PortScanner;
+use App\Security\PortRiskAdvisor;
 use App\Storage\DeviceStore;
 use App\Support\Cidr;
+use App\Support\Environment;
 
 $config = require __DIR__ . '/../bootstrap.php';
 
@@ -51,6 +53,7 @@ while (!connection_aborted()) {
     if ($portScanner !== null) {
         foreach ($devices as &$device) {
             $device['ports'] = $portScanner->scan($device['ip']);
+            $device['risks'] = PortRiskAdvisor::assess($device['ports']);
         }
         unset($device);
     }
@@ -78,6 +81,7 @@ while (!connection_aborted()) {
         'scanned_at' => date(DATE_ATOM),
         'engine' => $scanner->hasNmap() ? 'nmap' : 'php',
         'devices' => $devices,
+        'warnings' => Environment::detect()['warnings'],
     ];
 
     echo "event: devices\n";

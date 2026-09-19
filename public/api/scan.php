@@ -5,8 +5,10 @@ declare(strict_types=1);
 use App\Alerting\AlertDispatcher;
 use App\NetworkScanner;
 use App\PortScanner;
+use App\Security\PortRiskAdvisor;
 use App\Storage\DeviceStore;
 use App\Support\Cidr;
+use App\Support\Environment;
 
 $config = require __DIR__ . '/../bootstrap.php';
 
@@ -43,6 +45,7 @@ if ($scanPorts) {
     $portScanner = new PortScanner($config['ports'], $config['port_scan_timeout']);
     foreach ($devices as &$device) {
         $device['ports'] = $portScanner->scan($device['ip']);
+        $device['risks'] = PortRiskAdvisor::assess($device['ports']);
     }
     unset($device);
 }
@@ -71,4 +74,5 @@ echo json_encode([
     'scanned_at' => date(DATE_ATOM),
     'engine' => $scanner->hasNmap() ? 'nmap' : 'php',
     'devices' => $devices,
+    'warnings' => Environment::detect()['warnings'],
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

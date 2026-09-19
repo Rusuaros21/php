@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\PortScanner;
+use App\Security\PortRiskAdvisor;
 
 $config = require __DIR__ . '/../bootstrap.php';
 
@@ -27,5 +28,6 @@ $open = $scanner->scan($ip, $ports);
 echo json_encode([
     'ip' => $ip,
     'ports' => $open,
+    'risks' => PortRiskAdvisor::assess($open),
     'scanned_at' => date(DATE_ATOM),
 ], JSON_UNESCAPED_UNICODE);

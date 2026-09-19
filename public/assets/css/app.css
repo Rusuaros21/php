@@ -211,3 +211,86 @@ table.devices tbody tr.is-new {
   opacity: 0.6;
   cursor: default;
 }
+
+.warnings {
+  margin-bottom: 1rem;
+  background: rgba(232, 163, 61, 0.1);
+  border: 1px solid var(--warn);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+}
+
+.warning-item {
+  color: var(--warn);
+  font-size: 0.85rem;
+}
+
+.warning-item + .warning-item {
+  margin-top: 0.3rem;
+}
+
+.risk-badge {
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+}
+
+.risk-badge--high {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: rgba(226, 84, 77, 0.12);
+}
+
+.risk-badge--medium {
+  color: var(--warn);
+  border-color: var(--warn);
+  background: rgba(232, 163, 61, 0.12);
+}
+
+.risk-badge--low {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(79, 140, 255, 0.12);
+}
+
+.risk-details-row td {
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.8rem 1.2rem;
+}
+
+.risk-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.risk-item {
+  border-left: 3px solid var(--border);
+  padding: 0.2rem 0 0.2rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+.risk-item--high { border-left-color: var(--danger); }
+.risk-item--medium { border-left-color: var(--warn); }
+.risk-item--low { border-left-color: var(--accent); }
+
+.risk-item__severity {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-right: 0.4rem;
+}
+
+.risk-item p {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+}

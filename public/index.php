@@ -19,7 +19,8 @@ require __DIR__ . '/bootstrap.php';
   <form class="controls" id="controlsForm">
     <label>
       Sub-rede
-      <input type="text" id="subnet" placeholder="detectar automaticamente">
+      <input type="text" id="subnet" list="subnetSuggestions" placeholder="detectar automaticamente">
+      <datalist id="subnetSuggestions"></datalist>
     </label>
     <label class="checkbox">
       <input type="checkbox" id="scanPorts" checked>
@@ -31,9 +32,12 @@ require __DIR__ . '/bootstrap.php';
 </header>
 
 <main>
+  <div id="envWarnings" class="warnings" hidden></div>
+
   <div class="summary">
     <div class="summary__item"><strong id="deviceCount">0</strong> dispositivo(s) online</div>
     <div class="summary__item">Motor: <span id="engine">-</span></div>
+    <div class="summary__item">Sistema: <span id="osFamily">-</span></div>
     <div class="summary__item">Sub-rede: <span id="currentSubnet">-</span></div>
     <div class="summary__item">Última varredura: <span id="scannedAt">-</span></div>
   </div>
@@ -47,11 +51,12 @@ require __DIR__ . '/bootstrap.php';
         <th>MAC</th>
         <th>Fabricante</th>
         <th>Portas abertas</th>
+        <th>Riscos</th>
         <th></th>
       </tr>
     </thead>
     <tbody id="deviceList">
-      <tr><td colspan="7" class="empty">Aguardando primeira varredura…</td></tr>
+      <tr><td colspan="8" class="empty">Aguardando primeira varredura…</td></tr>
     </tbody>
   </table>
 </main>

@@ -104,7 +104,7 @@ final class NetworkScanner
         foreach (array_chunk($ips, $this->pingBatchSize) as $batch) {
             $procs = [];
             foreach ($batch as $ip) {
-                $cmd = sprintf('ping -c 1 -W %d %s', $this->pingTimeout, escapeshellarg($ip));
+                $cmd = $this->pingCommand($ip);
                 $descriptors = [
                     1 => ['file', '/dev/null', 'w'],
                     2 => ['file', '/dev/null', 'w'],
@@ -141,6 +141,20 @@ final class NetworkScanner
         return $devices;
     }
 
+    /**
+     * `ping`'s timeout flag is not portable: iputils (Linux) takes `-W`
+     * in seconds, while macOS/BSD ping interprets `-W` as milliseconds
+     * and instead offers `-t` as an overall per-run deadline in seconds.
+     */
+    private function pingCommand(string $ip): string
+    {
+        if (PHP_OS_FAMILY === 'Darwin' || PHP_OS_FAMILY === 'BSD') {
+            return sprintf('ping -c 1 -t %d %s', $this->pingTimeout, escapeshellarg($ip));
+        }
+
+        return sprintf('ping -c 1 -W %d %s', $this->pingTimeout, escapeshellarg($ip));
+    }
+
     private function resolveHostname(string $ip): ?string
     {
         $name = @gethostbyaddr($ip);
@@ -169,6 +183,18 @@ final class NetworkScanner
             if ($output) {
                 foreach (explode("\n", trim($output)) as $line) {
                     if (preg_match('#^(\d+\.\d+\.\d+\.\d+)\s+\S+\s+([0-9a-fA-F:]{17})#', $line, $m)) {
+                        $table[$m[1]] = strtoupper($m[2]);
+                    }
+                }
+            }
+        }
+
+        if (!$table) {
+            // macOS / BSD: "? (192.168.1.5) at aa:bb:cc:dd:ee:ff on en0 ifscope [ethernet]"
+            $output = @shell_exec('arp -a -n 2>/dev/null');
+            if ($output) {
+                foreach (explode("\n", trim($output)) as $line) {
+                    if (preg_match('#\((\d+\.\d+\.\d+\.\d+)\)\s+at\s+([0-9a-fA-F:]{17})#', $line, $m)) {
                         $table[$m[1]] = strtoupper($m[2]);
                     }
                 }
