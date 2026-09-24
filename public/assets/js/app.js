@@ -115,6 +115,24 @@
     return `<div class="os-guess"><strong>Sistema operacional provável:</strong><ul>${items}</ul></div>`;
   }
 
+  const SNMP_LABELS = {
+    sys_descr: 'Descrição',
+    sys_name: 'Nome configurado',
+    sys_contact: 'Contato',
+    sys_location: 'Localização',
+    sys_uptime: 'Uptime (ticks)',
+  };
+
+  function renderSnmp(snmp) {
+    if (!snmp || typeof snmp !== 'object' || Object.keys(snmp).length === 0) {
+      return '';
+    }
+    const items = Object.entries(snmp)
+      .map(([key, value]) => `<li><strong>${escapeHtml(SNMP_LABELS[key] || key)}:</strong> ${escapeHtml(value)}</li>`)
+      .join('');
+    return `<div class="os-guess"><strong>Dados via SNMP:</strong><ul>${items}</ul></div>`;
+  }
+
   function renderRiskSummary(risks) {
     if (!Array.isArray(risks) || risks.length === 0) {
       return '<span class="muted">—</span>';
@@ -250,11 +268,12 @@
       if (detailRow && detailRow.classList.contains('risk-details-row')) {
         const hasRisks = Array.isArray(data.risks) && data.risks.length > 0;
         const hasOs = Array.isArray(data.os) && data.os.length > 0;
-        detailRow.querySelector('td').innerHTML = renderOsGuess(data.os) + renderRiskDetails(data.risks);
-        detailRow.style.display = (hasRisks || hasOs) ? '' : 'none';
+        const hasSnmp = data.snmp && Object.keys(data.snmp).length > 0;
+        detailRow.querySelector('td').innerHTML = renderOsGuess(data.os) + renderSnmp(data.snmp) + renderRiskDetails(data.risks);
+        detailRow.style.display = (hasRisks || hasOs || hasSnmp) ? '' : 'none';
         // Auto-expand: the user just explicitly asked for this deep scan,
         // so show the result immediately instead of requiring another click.
-        detailRow.hidden = !(hasRisks || hasOs);
+        detailRow.hidden = !(hasRisks || hasOs || hasSnmp);
       }
     } catch (err) {
       console.error('Falha ao escanear portas', err);

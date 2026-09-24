@@ -70,4 +70,17 @@ return [
     'diagnostics' => [
         'flap_threshold' => 3,
     ],
+
+    // Community string usada para consultar equipamentos de rede via SNMP
+    // (roteadores, switches gerenciáveis, impressoras, APs, nobreaks) na
+    // varredura profunda ("Escanear portas/SO"). "public" é o padrão de
+    // fábrica mais comum para leitura; troque se a rede do cliente usar
+    // outra. Não é uma credencial administrativa — é só uma chave fraca de
+    // leitura, e a maioria dos computadores comuns (Windows/macOS/Linux)
+    // vem com SNMP desativado por padrão, então isso enriquece
+    // principalmente equipamento de rede/infraestrutura, não estações de
+    // trabalho.
+    'snmp' => [
+        'community' => getenv('SCANNER_SNMP_COMMUNITY') ?: 'public',
+    ],
 ];

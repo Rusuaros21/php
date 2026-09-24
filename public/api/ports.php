@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Discovery\SnmpDiscovery;
 use App\OsFingerprinter;
 use App\PortScanner;
 use App\Security\PortRiskAdvisor;
@@ -33,10 +34,19 @@ $open = $scanner->scan($ip, $ports, $fingerprint);
 
 $os = $fingerprint ? (new OsFingerprinter())->detect($ip) : [];
 
+$snmp = null;
+if ($fingerprint) {
+    $snmpDiscovery = new SnmpDiscovery($config['snmp']['community']);
+    if ($snmpDiscovery->isAvailable()) {
+        $snmp = $snmpDiscovery->query($ip);
+    }
+}
+
 echo json_encode([
     'ip' => $ip,
     'ports' => $open,
     'risks' => PortRiskAdvisor::assess($open),
     'os' => $os,
+    'snmp' => $snmp,
     'scanned_at' => date(DATE_ATOM),
 ], JSON_UNESCAPED_UNICODE);

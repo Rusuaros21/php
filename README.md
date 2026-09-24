@@ -38,6 +38,15 @@ abertas. Também verifica seu IP público na aba dedicada.
   passiva via SSDP/UPnP (sem varrer portas nem precisar de privilégios) —
   identifica impressoras, Smart TVs, câmeras e outros dispositivos que
   anunciam sua própria marca e modelo na rede.
+- **Configuração de equipamento de rede via SNMP**
+  (`src/Discovery/SnmpDiscovery.php`): também dentro do "Escanear
+  portas/SO", consulta o grupo padrão MIB-II de cada host (descrição do
+  sistema, nome configurado, contato, localização) — sem credenciais, só a
+  *community string* de leitura (`public` por padrão, configurável).
+  Funciona bem em roteadores, switches gerenciáveis, impressoras, APs e
+  nobreaks; a maioria dos computadores comuns vem com SNMP desativado por
+  padrão, então isso enriquece principalmente equipamento de
+  rede/infraestrutura.
 - **Riscos por dispositivo** (`src/Security/PortRiskAdvisor.php`): cada
   porta aberta é confrontada com uma tabela de riscos conhecidos (ex.:
   Telnet/FTP em texto puro, SMB/RDP/VNC expostos) e o resultado aparece na
@@ -62,6 +71,10 @@ abertas. Também verifica seu IP público na aba dedicada.
 
 - PHP 8.1+ com as extensões padrão (`simplexml`, `sockets`/`streams`,
   `pdo_sqlite`).
+- Opcional: extensão `snmp` do PHP (pacote `php-snmp` no Linux) para
+  consultar equipamento de rede via SNMP com melhor desempenho. Sem ela,
+  cai no fallback via `nmap` (mais lento); sem nenhum dos dois, essa parte
+  fica desativada.
 - Recomendado: [`nmap`](https://nmap.org/) instalado no servidor (dá
   resultados mais rápidos e confiáveis, incluindo fabricante do dispositivo).
   Sem `nmap`, o sistema usa os utilitários nativos do SO (`ping` +
@@ -253,8 +266,8 @@ export SCANNER_PUBLIC_IP_ENABLED=0
   requer múltiplos ciclos).
 - `GET /api/ports.php?ip=192.168.1.10&full=1&fingerprint=1` — varredura de
   portas e riscos sob demanda para um único dispositivo (`full=1` varre as
-  portas 1–1024; `fingerprint=1` adiciona versão dos serviços e SO
-  detectado, mais lento por isso é opt-in).
+  portas 1–1024; `fingerprint=1` adiciona versão dos serviços, SO detectado
+  e dados via SNMP, mais lento por isso é opt-in).
 - `GET /api/upnp.php` — descoberta passiva de dispositivos UPnP/IoT na rede
   (leva alguns segundos; espera respostas por broadcast).
 
