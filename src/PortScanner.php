@@ -22,13 +22,13 @@ final class PortScanner
     ) {
     }
 
-    public function scan(string $ip, ?array $ports = null): array
+    public function scan(string $ip, ?array $ports = null, bool $detectVersions = false): array
     {
         $ports = $ports ?: $this->defaultPorts;
 
         return $this->hasNmap()
-            ? $this->scanWithNmap($ip, $ports)
-            : $this->scanWithSockets($ip, $ports);
+            ? $this->scanWithNmap($ip, $ports, $detectVersions)
+            : $this->scanWithSockets($ip, $ports, $detectVersions);
     }
 
     public function hasNmap(): bool
@@ -40,7 +40,7 @@ final class PortScanner
         return $this->nmapAvailable;
     }
 
-    private function scanWithNmap(string $ip, array $ports): array
+    private function scanWithNmap(string $ip, array $ports, bool $detectVersions = false): array
     {
         if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
             return [];
@@ -48,13 +48,14 @@ final class PortScanner
 
         $portList = implode(',', array_map('intval', $ports));
         $cmd = sprintf(
-            'nmap -Pn -T4 -p %s --open -oX - %s 2>/dev/null',
+            'nmap -Pn -T4 %s-p %s --open -oX - %s 2>/dev/null',
+            $detectVersions ? '-sV ' : '',
             escapeshellarg($portList),
             escapeshellarg($ip)
         );
         $xml = @shell_exec($cmd);
         if (!$xml) {
-            return $this->scanWithSockets($ip, $ports);
+            return $this->scanWithSockets($ip, $ports, $detectVersions);
         }
 
         $sx = @simplexml_load_string($xml);
@@ -65,9 +66,13 @@ final class PortScanner
         $open = [];
         foreach ($sx->host->ports->port as $port) {
             if ((string) $port->state['state'] === 'open') {
+                $product = (string) ($port->service['product'] ?? '');
+                $version = (string) ($port->service['version'] ?? '');
                 $open[] = [
                     'port' => (int) $port['portid'],
                     'service' => (string) ($port->service['name'] ?? ''),
+                    'product' => $product !== '' ? $product : null,
+                    'version' => $version !== '' ? $version : null,
                 ];
             }
         }
@@ -75,7 +80,7 @@ final class PortScanner
         return $open;
     }
 
-    private function scanWithSockets(string $ip, array $ports): array
+    private function scanWithSockets(string $ip, array $ports, bool $detectVersions = false): array
     {
         if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
             return [];
@@ -116,7 +121,7 @@ final class PortScanner
                     continue;
                 }
                 if (@stream_socket_get_name($socket, true) !== false) {
-                    $open[] = ['port' => $port, 'service' => $this->guessService($port)];
+                    $open[] = ['port' => $port, 'service' => $this->guessService($port), 'product' => null, 'version' => null];
                 }
                 fclose($socket);
                 unset($sockets[$port]);
@@ -129,7 +134,49 @@ final class PortScanner
 
         usort($open, fn ($a, $b) => $a['port'] <=> $b['port']);
 
+        if ($detectVersions) {
+            foreach ($open as &$entry) {
+                $entry['product'] = $this->grabBanner($ip, $entry['port']);
+            }
+            unset($entry);
+        }
+
         return $open;
+    }
+
+    /**
+     * Best-effort version hint without nmap: connect and read whatever the
+     * service sends unprompted (SSH/FTP/SMTP/etc. banners), or send a
+     * minimal HTTP request and read the `Server:` header for web ports.
+     */
+    private function grabBanner(string $ip, int $port): ?string
+    {
+        $errno = 0;
+        $errstr = '';
+        $socket = @stream_socket_client("tcp://{$ip}:{$port}", $errno, $errstr, 1.5);
+        if ($socket === false) {
+            return null;
+        }
+        stream_set_timeout($socket, 1);
+
+        if (in_array($port, [80, 8080, 8000, 8888], true)) {
+            @fwrite($socket, "HEAD / HTTP/1.0\r\nHost: {$ip}\r\nConnection: close\r\n\r\n");
+        }
+
+        $data = @fread($socket, 512);
+        fclose($socket);
+
+        if (!$data) {
+            return null;
+        }
+
+        if (preg_match('/^Server:\s*(.+)$/mi', $data, $m)) {
+            return trim($m[1]);
+        }
+
+        $firstLine = trim(strtok($data, "\r\n"));
+
+        return $firstLine !== '' ? $firstLine : null;
     }
 
     private function guessService(int $port): string

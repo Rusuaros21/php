@@ -26,6 +26,18 @@ abertas. Também verifica seu IP público na aba dedicada.
   disponível, ou sockets não bloqueantes em paralelo (`stream_socket_client`
   + `stream_select`) como fallback, testando todas as portas de um host
   simultaneamente.
+- **Versão dos serviços e sistema operacional** (`src/PortScanner.php` +
+  `src/OsFingerprinter.php`): sob demanda (botão "Escanear portas/SO" em
+  cada host), usa `nmap -sV`/`-O` para identificar a versão de cada serviço
+  exposto (ex.: "OpenSSH 8.2p1") e o SO provável do host, com nível de
+  confiança. Sem `nmap`, cai num fallback de *banner grab* em PHP puro
+  (lê o que o serviço envia ao conectar, ou o cabeçalho `Server:` em portas
+  HTTP) — só a versão do serviço, sem detecção de SO (que exige análise de
+  pilha TCP/IP, inviável em PHP puro).
+- **Dispositivos UPnP/IoT** (`src/Discovery/SsdpDiscovery.php`): descoberta
+  passiva via SSDP/UPnP (sem varrer portas nem precisar de privilégios) —
+  identifica impressoras, Smart TVs, câmeras e outros dispositivos que
+  anunciam sua própria marca e modelo na rede.
 - **Riscos por dispositivo** (`src/Security/PortRiskAdvisor.php`): cada
   porta aberta é confrontada com uma tabela de riscos conhecidos (ex.:
   Telnet/FTP em texto puro, SMB/RDP/VNC expostos) e o resultado aparece na
@@ -239,12 +251,26 @@ export SCANNER_PUBLIC_IP_ENABLED=0
 - `GET /api/scan.php?subnet=192.168.1.0/24&ports=1` — uma varredura única em
   JSON, com `network_diagnostics` (sem detecção de instabilidade, que
   requer múltiplos ciclos).
-- `GET /api/ports.php?ip=192.168.1.10&full=1` — varredura de portas e riscos
-  sob demanda para um único dispositivo (`full=1` varre as portas 1–1024;
-  sem esse parâmetro, usa a lista de portas comuns do `config/config.php`).
+- `GET /api/ports.php?ip=192.168.1.10&full=1&fingerprint=1` — varredura de
+  portas e riscos sob demanda para um único dispositivo (`full=1` varre as
+  portas 1–1024; `fingerprint=1` adiciona versão dos serviços e SO
+  detectado, mais lento por isso é opt-in).
+- `GET /api/upnp.php` — descoberta passiva de dispositivos UPnP/IoT na rede
+  (leva alguns segundos; espera respostas por broadcast).
 
 Se nenhuma `subnet` for informada, o sistema tenta detectar automaticamente
 a partir do ambiente (veja "Reconhecimento de ambiente" acima).
+
+### Sobre a detecção de SO (`-O` do nmap)
+
+A detecção de sistema operacional geralmente **exige privilégios de
+administrador/root** — sem eles, o nmap simplesmente não retorna nenhum
+palpite (não dá erro, só fica vazio), o que no dashboard aparece como "SO
+não detectado". Se isso acontecer e você realmente precisar dessa
+informação, rode o servidor com privilégios elevados (`sudo php -S ...` no
+Linux/macOS, ou "Executar como administrador" no `start.bat` do Windows) —
+mas avalie o risco de rodar um servidor web com privilégios de root antes
+de fazer isso.
 
 ## Configuração
 

@@ -66,6 +66,28 @@ require __DIR__ . '/bootstrap.php';
         <tr><td colspan="8" class="empty">Aguardando primeira varredura…</td></tr>
       </tbody>
     </table>
+
+    <p class="hint">
+      Clique em "Escanear portas/SO" numa linha para uma varredura mais
+      profunda (portas 1–1024, versão dos serviços e sistema operacional
+      provável do host).
+    </p>
+
+    <div class="subsection">
+      <div class="subsection__header">
+        <h2>Dispositivos UPnP/IoT</h2>
+        <button type="button" id="checkUpnpBtn" class="link-btn">Detectar na rede</button>
+      </div>
+      <p class="note">
+        Descoberta passiva via UPnP/SSDP: impressoras, Smart TVs, câmeras e
+        outros dispositivos que anunciam a própria marca e modelo na rede.
+        Não escaneia portas nem precisa de privilégios especiais — nem todo
+        dispositivo responde (alguns têm UPnP desativado).
+      </p>
+      <div id="upnpContent">
+        <div class="empty">Clique em "Detectar na rede" para procurar.</div>
+      </div>
+    </div>
   </section>
 
   <section id="tab-diagnostics" class="tab-panel" hidden>

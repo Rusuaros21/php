@@ -23,6 +23,8 @@
   const publicIpContentEl = document.getElementById('publicIpContent');
   const diagnosticsContentEl = document.getElementById('diagnosticsContent');
   const diagnosticsBadgeEl = document.getElementById('diagnosticsBadge');
+  const checkUpnpBtn = document.getElementById('checkUpnpBtn');
+  const upnpContentEl = document.getElementById('upnpContent');
 
   const SEVERITY_LABEL = { high: 'ALTO', medium: 'MÉDIO', low: 'BAIXO' };
   const SEVERITY_RANK = { high: 3, medium: 2, low: 1 };
@@ -95,8 +97,22 @@
       return '<span class="muted">nenhuma</span>';
     }
     return ports
-      .map((p) => `<span class="badge" title="${escapeHtml(p.service || '')}">${escapeHtml(String(p.port))}</span>`)
+      .map((p) => {
+        const versionLabel = [p.product, p.version].filter(Boolean).join(' ');
+        const label = versionLabel ? `${p.port} · ${versionLabel}` : String(p.port);
+        return `<span class="badge" title="${escapeHtml(p.service || '')}">${escapeHtml(label)}</span>`;
+      })
       .join(' ');
+  }
+
+  function renderOsGuess(os) {
+    if (!Array.isArray(os) || os.length === 0) {
+      return '';
+    }
+    const items = os
+      .map((m) => `<li>${escapeHtml(m.name)} <span class="muted">(${escapeHtml(String(m.accuracy))}% de confiança)</span></li>`)
+      .join('');
+    return `<div class="os-guess"><strong>Sistema operacional provável:</strong><ul>${items}</ul></div>`;
   }
 
   function renderRiskSummary(risks) {
@@ -187,7 +203,7 @@
         <td>${escapeHtml(device.vendor || '—')}</td>
         <td class="ports-cell">${renderPorts(device.ports)}</td>
         <td class="risks-cell">${renderRiskSummary(device.risks)}</td>
-        <td><button type="button" class="link-btn" data-ip="${escapeHtml(device.ip)}">Escanear portas</button></td>
+        <td><button type="button" class="link-btn" data-ip="${escapeHtml(device.ip)}">Escanear portas/SO</button></td>
       `;
       deviceListEl.appendChild(tr);
 
@@ -224,7 +240,7 @@
     scanBtn.textContent = 'Escaneando…';
 
     try {
-      const res = await fetch(`api/ports.php?ip=${encodeURIComponent(ip)}&full=1`);
+      const res = await fetch(`api/ports.php?ip=${encodeURIComponent(ip)}&full=1&fingerprint=1`);
       const data = await res.json();
       const row = scanBtn.closest('tr');
       row.querySelector('.ports-cell').innerHTML = renderPorts(data.ports);
@@ -233,9 +249,12 @@
       const detailRow = row.nextElementSibling;
       if (detailRow && detailRow.classList.contains('risk-details-row')) {
         const hasRisks = Array.isArray(data.risks) && data.risks.length > 0;
-        detailRow.querySelector('td').innerHTML = renderRiskDetails(data.risks);
-        detailRow.style.display = hasRisks ? '' : 'none';
-        detailRow.hidden = true;
+        const hasOs = Array.isArray(data.os) && data.os.length > 0;
+        detailRow.querySelector('td').innerHTML = renderOsGuess(data.os) + renderRiskDetails(data.risks);
+        detailRow.style.display = (hasRisks || hasOs) ? '' : 'none';
+        // Auto-expand: the user just explicitly asked for this deep scan,
+        // so show the result immediately instead of requiring another click.
+        detailRow.hidden = !(hasRisks || hasOs);
       }
     } catch (err) {
       console.error('Falha ao escanear portas', err);
@@ -335,6 +354,62 @@
   }
 
   checkPublicIpBtn.addEventListener('click', checkPublicIp);
+
+  function renderUpnpDevices(devices) {
+    const list = Array.isArray(devices) ? devices : [];
+    if (list.length === 0) {
+      upnpContentEl.innerHTML = '<div class="empty">Nenhum dispositivo UPnP respondeu.</div>';
+      return;
+    }
+
+    const rows = list
+      .map((d) => {
+        const name = d.friendly_name || d.server || '(sem nome anunciado)';
+        const model = [d.manufacturer, d.model_name].filter(Boolean).join(' ');
+        return `
+          <tr>
+            <td>${escapeHtml(d.ip)}</td>
+            <td>${escapeHtml(name)}</td>
+            <td>${model ? escapeHtml(model) : '<span class="muted">—</span>'}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    upnpContentEl.innerHTML = `
+      <table class="devices devices--compact">
+        <thead><tr><th>IP</th><th>Nome</th><th>Fabricante/Modelo</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  async function checkUpnp() {
+    const originalLabel = checkUpnpBtn.textContent;
+    checkUpnpBtn.disabled = true;
+    checkUpnpBtn.textContent = 'Procurando…';
+    upnpContentEl.innerHTML = '<div class="empty">Procurando dispositivos (alguns segundos)…</div>';
+
+    try {
+      const res = await fetch('api/upnp.php');
+      const data = await res.json();
+
+      if (data.error) {
+        upnpContentEl.innerHTML = `<div class="empty">${escapeHtml(data.error)}</div>`;
+        return;
+      }
+
+      renderUpnpDevices(data.devices);
+    } catch (err) {
+      console.error('Falha ao detectar dispositivos UPnP', err);
+      upnpContentEl.innerHTML = '<div class="empty">Falha ao detectar. Tente novamente.</div>';
+    } finally {
+      checkUpnpBtn.disabled = false;
+      checkUpnpBtn.textContent = originalLabel;
+    }
+  }
+
+  checkUpnpBtn.addEventListener('click', checkUpnp);
 
   loadEnvironment();
   connect();

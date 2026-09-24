@@ -350,3 +350,43 @@ table.devices tbody tr.is-new {
   margin: 0.2rem 0 0;
   color: var(--muted);
 }
+
+.hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 0.6rem 0 0;
+}
+
+.subsection {
+  margin-top: 1.5rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--border);
+}
+
+.subsection__header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.subsection__header h2 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.devices--compact th,
+.devices--compact td {
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.os-guess {
+  margin-bottom: 0.8rem;
+  font-size: 0.85rem;
+}
+
+.os-guess ul {
+  margin: 0.3rem 0 0;
+  padding-left: 1.2rem;
+}
