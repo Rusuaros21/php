@@ -74,7 +74,11 @@ Stack definida: Python 3.12, **Django 5.2**, **PostgreSQL** (desde o início, se
 Trabalhamos uma etapa por vez, com validação do usuário entre elas.
 
 1. [x] Base do projeto: Django + PostgreSQL, apps, cadastro de empresa/conta bancária/parâmetros, testes.
-2. [ ] Importadores: OFX, extrato CSV/Excel, contas a pagar CSV/Excel.
+2. [x] Importadores: OFX, extrato CSV/Excel, contas a pagar/receber CSV/Excel.
+   - Colunas reconhecidas por sinônimos (`importers/leitores/tabela.py`); mapeamento manual com `--mapa` quando o arquivo do cliente usar outros nomes.
+   - Mesmo arquivo não é importado duas vezes (hash SHA-256 por empresa).
+   - Linhas de saldo do extrato CSV são ignoradas; qualquer linha inválida aborta a importação listando as linhas com erro.
+   - Formatos genéricos: ajustar quando chegarem arquivos reais do cliente piloto.
 3. [ ] Normalização: limpeza de histórico, extração de CNPJ/CPF e nº de documento.
 4. [ ] Motor: regras, match exato, valor+data, tolerância, N:1/1:N, duplicidade, score.
 5. [ ] Exportação da planilha Excel (movimentações classificadas + resumo).

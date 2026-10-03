@@ -28,6 +28,33 @@ python manage.py runserver         # admin em http://localhost:8000/admin/
 As variáveis do `.env` são lidas do ambiente. Exporte-as no terminal ou use
 uma ferramenta como `direnv`. Os valores padrão já funcionam com o `docker-compose.yml`.
 
+## Uso (até a etapa 2)
+
+```bash
+# 1. Cadastrar a empresa
+python manage.py criar_empresa --razao-social "Supermercado X Ltda" --cnpj 11.222.333/0001-81 --codigo-dominio 101
+
+# 2. Importar o extrato (no OFX a conta bancária vem do arquivo)
+python manage.py importar_extrato dados/extrato_setembro.ofx --empresa 101
+
+# Extrato em CSV/Excel: informe a conta
+python manage.py importar_extrato dados/extrato.csv --empresa 101 --banco 748 --agencia 0101 --conta 12345-6
+
+# 3. Importar o contas a pagar
+python manage.py importar_titulos dados/contas_pagar.xlsx --empresa 101
+```
+
+Quando o arquivo usar nomes de coluna não reconhecidos, informe o mapeamento:
+
+```bash
+python manage.py importar_titulos dados/pagar.csv --empresa 101 \
+    --mapa "parceiro_nome=Razão,numero_documento=NF,data_vencimento=Vcto,valor=Vlr Original"
+```
+
+Campos do extrato: `data`, `historico`, `valor` (ou `debito`/`credito`), `natureza` (D/C), `documento`, `fitid`.
+Campos dos títulos: `parceiro_nome`, `parceiro_cnpj_cpf`, `numero_documento`, `data_emissao`,
+`data_vencimento`, `data_pagamento`, `valor`, `valor_pago`, `historico`.
+
 ## Testes
 
 ```bash
